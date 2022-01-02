@@ -1,6 +1,4 @@
-﻿using System;
-using System.Linq;
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 using DDD.DomainLayer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
@@ -9,15 +7,47 @@ using PackagesManagementDB.Models;
 
 namespace PackagesManagementDB
 {
-    public class MainDbContext: IdentityDbContext<IdentityUser<int>, IdentityRole<int>, int>, IUnitOfWork
+    public class MainDbContext : IdentityDbContext<IdentityUser<int>, IdentityRole<int>, int>, IUnitOfWork
     {
-        public DbSet<Package> Packages { get; set; }
-        public DbSet<Destination> Destinations { get; set; }
-        public DbSet<PackageEvent> PackageEvents { get; set; }
         public MainDbContext(DbContextOptions options)
             : base(options)
         {
         }
+
+        public DbSet<Package> Packages { get; set; }
+        public DbSet<Destination> Destinations { get; set; }
+        public DbSet<PackageEvent> PackageEvents { get; set; }
+
+        public async Task<bool> SaveEntitiesAsync()
+        {
+            try
+            {
+                return await SaveChangesAsync() > 0;
+            }
+            catch (DbUpdateConcurrencyException ex)
+            {
+                foreach (var entry in ex.Entries) entry.State = EntityState.Detached;
+                throw;
+            }
+        }
+
+        public async Task StartAsync()
+        {
+            await Database.BeginTransactionAsync();
+        }
+
+        public Task CommitAsync()
+        {
+            Database.CommitTransaction();
+            return Task.CompletedTask;
+        }
+
+        public Task RollbackAsync()
+        {
+            Database.RollbackTransaction();
+            return Task.CompletedTask;
+        }
+
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);
@@ -44,45 +74,6 @@ namespace PackagesManagementDB
 
             builder.Entity<Package>()
                 .HasIndex(nameof(Package.StartValidityDate), nameof(Package.EndValidityDate));
-        }
-
-        public async Task<bool> SaveEntitiesAsync()
-        {
-            
-            
-            
-            try
-            {
-                return await SaveChangesAsync() > 0;
-            }
-            catch (DbUpdateConcurrencyException ex)
-            {
-                foreach (var entry in ex.Entries)
-                {
-
-                    entry.State = EntityState.Detached;                   
-                         
-                }
-                throw;
-            }
-            
-        }
-
-        public async Task StartAsync()
-        {
-            await Database.BeginTransactionAsync();
-        }
-
-        public  Task CommitAsync()
-        {
-            Database.CommitTransaction();
-            return Task.CompletedTask;
-        }
-
-        public  Task RollbackAsync()
-        {
-            Database.RollbackTransaction();
-            return Task.CompletedTask;
         }
     }
 }
